@@ -1,91 +1,127 @@
 const express = require("express");
+const Book = require("../models/books");
 const router = express.Router();
+const {
+  fetchOpenLibraryData,
+  fetchGoogleBooksData,
+} = require("../services/bookService");
 
-// 🚀 Fonction pour récupérer les infos d'Open Library
-async function fetchOpenLibraryData(isbn) {
-  try {
-    const response = await fetch(
-      `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`
-    );
-    const data = await response.json();
-    const book = data[`ISBN:${isbn}`];
-
-    if (!book) return null;
-
-    return {
-      title: book.title || null,
-      author: book.authors ? book.authors.map((a) => a.name).join(", ") : null,
-      pages: book.number_of_pages || null,
-      publicationYear: book.publish_date || null,
-      genres: book.subjects ? book.subjects.map((s) => s.name) : null,
-      cover: book.cover ? book.cover.large : null,
-    };
-  } catch (error) {
-    console.error("❌ Erreur Open Library :", error);
-    return null;
-  }
-}
-
-// 🚀 Fonction pour récupérer les infos de Google Books
-async function fetchGoogleBooksData(isbn) {
-  try {
-    const response = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
-    );
-    const data = await response.json();
-    const book = data.items ? data.items[0].volumeInfo : null;
-
-    if (!book) return null;
-
-    return {
-      title: book.title || null,
-      author: book.authors ? book.authors.join(", ") : null,
-      summary: book.description || null,
-      pages: book.pageCount || null,
-      publicationYear: book.publishedDate || null,
-      genres: book.categories || null,
-      rating: book.averageRating || null,
-      reviewCount: book.ratingsCount || null,
-      cover: book.imageLinks ? book.imageLinks.thumbnail : null,
-    };
-  } catch (error) {
-    console.error("❌ Erreur Google Books :", error);
-    return null;
-  }
-}
-
-// 🚀 Route principale optimisée
-router.get("/:isbn", async (req, res) => {
+// 🚀 Recherche par ISBN
+router.get("/isbn/:isbn", async (req, res) => {
   try {
     const { isbn } = req.params;
-    const startTime = Date.now();
 
-    // Exécuter les deux requêtes en parallèle
+    let book = await Book.findOne({ isbn });
+    if (book) {
+      return res.status(200).json({ result: true, book, source: "database" });
+    }
+
     const [openLibData, googleData] = await Promise.all([
-      fetchOpenLibraryData(isbn),
-      fetchGoogleBooksData(isbn),
+      fetchOpenLibraryData(isbn, true),
+      fetchGoogleBooksData(isbn, true),
     ]);
 
-    // Fusionner les données (Google en priorité, puis Open Library en fallback)
+    // ✅ On vérifie bien que les auteurs et genres sont récupérés
     const bookDetails = {
-      title: googleData?.title || openLibData?.title || "Titre inconnu",
-      author: googleData?.author || openLibData?.author || "Auteur inconnu",
-      summary: googleData?.summary || "Résumé non disponible",
-      pages: googleData?.pages || openLibData?.pages || "Inconnu",
+      isbn,
+      title: openLibData[0]?.title || googleData[0]?.title || "Titre inconnu",
+      author:
+        googleData[0]?.author || openLibData[0]?.author || "Auteur inconnu",
+      summary: googleData[0]?.summary || "Résumé non disponible",
+      pages: googleData[0]?.pages || openLibData[0]?.pages || "Inconnu",
       publicationYear:
-        googleData?.publicationYear ||
-        openLibData?.publicationYear ||
+        googleData[0]?.publicationYear ||
+        openLibData[0]?.publicationYear ||
         "Inconnu",
-      genres: googleData?.genres || openLibData?.genres || [],
-      rating: googleData?.rating || "Pas de note",
-      reviewCount: googleData?.reviewCount || "Pas d'avis",
-      cover: googleData?.cover || openLibData?.cover || "Pas de couverture",
+      genres:
+        googleData[0]?.genres.length > 0
+          ? googleData[0]?.genres
+          : openLibData[0]?.genres.length > 0
+          ? openLibData[0]?.genres
+          : ["Genres inconnus"],
+      cover:
+        googleData[0]?.cover || openLibData[0]?.cover || "Pas de couverture",
     };
 
-    const endTime = Date.now();
-    const time = `${endTime - startTime} ms`;
+    if (bookDetails.title !== "Titre inconnu") {
+      const newBook = new Book(bookDetails);
+      await newBook.save();
+    }
 
-    res.status(200).json({ result: true, book: bookDetails, time });
+    res.status(200).json({ result: true, book: bookDetails, source: "api" });
+  } catch (error) {
+    console.error("❌ Erreur :", error);
+    res
+      .status(500)
+      .json({ result: false, error: "Erreur de récupération des données" });
+  }
+});
+
+// Route pour chercher un livre par titre
+router.get("/title/:title", async (req, res) => {
+  try {
+    const titleQuery = req.params.title;
+
+    // 🔎 Vérifier si le livre est déjà en base de données
+    const existingBooks = await Book.find({
+      title: new RegExp(titleQuery, "i"),
+    });
+
+    if (existingBooks.length > 0) {
+      return res
+        .status(200)
+        .json({ result: true, data: existingBooks, source: "database" });
+    }
+
+    // 🔍 Sinon, récupérer depuis l'API Google Books
+    const googleResponse = await fetch(
+      `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(
+        titleQuery
+      )}&maxResults=5&langRestrict=fr`
+    );
+    const googleData = await googleResponse.json();
+
+    if (!googleData.items || googleData.items.length === 0) {
+      return res.status(404).json({
+        result: false,
+        message: "Aucun livre trouvé",
+      });
+    }
+
+    // 📥 Formatage et sauvegarde en DB
+    const books = await Promise.all(
+      googleData.items.map(async (item) => {
+        const volumeInfo = item.volumeInfo;
+        const bookData = {
+          isbn:
+            volumeInfo.industryIdentifiers?.[0]?.identifier || "ISBN inconnu",
+          title: volumeInfo.title || "Titre inconnu",
+          author: volumeInfo.authors
+            ? volumeInfo.authors.join(", ")
+            : "Auteur inconnu",
+          summary:
+            volumeInfo.language === "fr"
+              ? volumeInfo.description || "Résumé non disponible"
+              : "Résumé non disponible en français",
+          pages: volumeInfo.pageCount || null,
+          publicationYear: volumeInfo.publishedDate?.split("-")[0] || "Inconnu",
+          genres: volumeInfo.categories || ["Genres inconnus"],
+          cover: volumeInfo.imageLinks?.thumbnail || "Pas de couverture",
+        };
+
+        // 🔄 Sauvegarde uniquement si le livre n'existe pas déjà
+        const existingBook = await Book.findOne({ isbn: bookData.isbn });
+        if (!existingBook) {
+          return Book.create(bookData);
+        }
+
+        return existingBook; // Si déjà existant, le renvoyer
+      })
+    );
+
+    res
+      .status(200)
+      .json({ result: true, data: books, source: "Google Books API" });
   } catch (error) {
     console.error("❌ Erreur :", error);
     res

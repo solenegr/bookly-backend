@@ -27,4 +27,4 @@ const LibrarySchema = mongoose.Schema(
 // Création du modèle
 const Library = mongoose.model("labraries", ReadingListSchema);
 
-export default Library;
+module.exports = Library;
