@@ -1,5 +1,4 @@
-const mongoose = require('mongoose');
-
+const mongoose = require("mongoose");
 
 const LibrarySchema = mongoose.Schema(
   {
@@ -7,14 +6,22 @@ const LibrarySchema = mongoose.Schema(
     isPublic: { type: Boolean, default: true },
     readings: [
       {
-        book: { type: mongoose.Schema.Types.ObjectId, ref: "Book", required: true },
-        status: { type: String, enum: ["reading", "completed", "want to read"], required: true },
+        book: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Book",
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ["reading", "completed", "want to read", "none"],
+          required: true,
+        },
         added_at: { type: Date, default: Date.now },
-        genres: { type: [String], default: [] }
-      }
-    ]
+        genres: { type: [String], default: [] },
+      },
+    ],
   },
-  { timestamps: true } 
+  { timestamps: true }
 );
 
 // Création du modèle
