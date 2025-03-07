@@ -1,20 +1,32 @@
+const request = require("supertest");
+const app = require("../app");
 
-const request = require('supertest');
-const app = require('../app');
-// module.exports = {
-//     mongoose,
-//     connect: () => {
-//       mongoose.Promise = Promise;
-//       mongoose.connect(config.database[process.env.CONNECTION_STRING]);
-//     },
-//     disconnect: done => {
-//       mongoose.disconnect(done);
-//     }
-//   };
+describe("Test the root path", () => {
+  test("should return the challenge with the given id", (done) => {
+    const idChallenge = "67c985d2d9437c138e7b22fb";
+    request(app)
+      .get(`/challenges/${idChallenge}`)
+      .then((response) => {
+        expect(response.statusCode).toBe(200);
+       // console.log(response.challenge);
+        expect(response.body.challenge).toHaveProperty("title", "challenge1");
+        expect(response.body.challenge).toHaveProperty("_id", "67c985d2d9437c138e7b22fb");
+        expect(response.body.challenge).toHaveProperty(
+          "title",
+          "description",
+          "books"
+        );
+        done();
+      });
+  });
 
-it('GET /challenges', async () => {
- const res = await request(app).get('/challenges');
+  test("should return 404 if challenge is not found", async () => {
+    const nonExistentIdChallenge = "67c985d2d9437c138e7b22fa";
 
- expect(res.statusCode).toBe(200);
-//  expect(res.body.stock).toEqual(['iPhone', 'iPad', 'iPod']);
+    const response = await request(app).get(`/challenges/${nonExistentIdChallenge}`);
+    //console.log(response);
+    expect(response.status).toBe(404);
+    expect(response.body).toHaveProperty("result", false);
+    expect(response.body).toHaveProperty("message", "Challenge not found");
+  });
 });

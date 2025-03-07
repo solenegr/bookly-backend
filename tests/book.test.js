@@ -8,7 +8,7 @@ describe("Test the root path", () => {
       .get(`/books/isbn/${isbn}`)
       .then((response) => {
         expect(response.statusCode).toBe(200);
-        console.log(response.body.book);
+       //console.log(response.body.book);
         expect(response.body.book).toHaveProperty("isbn", "978-2-330-02430-7");
         expect(response.body.book).toHaveProperty(
           "title",
@@ -22,7 +22,7 @@ describe("Test the root path", () => {
     const nonExistentIsbn = "97800000000000";
 
     const response = await request(app).get(`/books/isbn/${nonExistentIsbn}`);
-    console.log(response);
+   //console.log(response);
     expect(response.status).toBe(404);
     expect(response.body).toHaveProperty("result", false);
     expect(response.body).toHaveProperty("error", "Book not found");

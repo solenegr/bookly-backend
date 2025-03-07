@@ -28,7 +28,7 @@ router.get('/:challengeId', async (req, res) => {
     try {
         const challenge = await Challenge.findById(req.params.challengeId).populate("books");
         if (!challenge) {
-            return res.status(404).json({ message: "Challenge non trouvé" });
+            return res.status(404).json({ result: false, message: "Challenge not found" });
         }
         res.json({result: true, challenge:challenge});
     } catch (error) {
