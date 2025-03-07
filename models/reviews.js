@@ -4,9 +4,9 @@ const mongoose = require('mongoose');
 
 const reviewSchema = mongoose.Schema({
   content: { type: String, required: true },
-  book: { type: mongoose.Schema.Types.ObjectId, ref: "Book"}, 
-  user: { type: mongoose.Schema.Types.ObjectId,  ref: "User"},
-  likes:{type: [mongoose.Schema.Types.ObjectId],ref: "User", default:[]}
+  book: { type: mongoose.Schema.Types.ObjectId, ref: "books"}, 
+  user: { type: mongoose.Schema.Types.ObjectId,  ref: "users"},
+  likes:{type: [mongoose.Schema.Types.ObjectId],ref: "users", default:[]}
 },
 {timestamps:true});
 

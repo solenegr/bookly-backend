@@ -17,8 +17,8 @@ router.post('/', async (req, res) => {
 //Récupérer tous les Challenges
 router.get('/', async (req, res) => {
     try {
-        const challenges = await Challenge.find().populate("books");
-        res.status(201).json({result: true,challenges: challenges});
+        const challenges = await Challenge.find().populate("books"); 
+        res.status(200).json({ result: true, challenges });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
