@@ -85,7 +85,161 @@ async function fetchGoogleBooksData(query, isIsbn) {
   }
 }
 
+const HF_API_URL =
+  "https://api-inference.huggingface.co/models/facebook/bart-large-cnn";
+const HF_GENRE_API_URL =
+  "https://api-inference.huggingface.co/models/facebook/roberta-large-mnli";
+
+const fetchHuggingFaceSummary = async (text) => {
+  const response = await fetch(HF_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.HUGGING_FACE}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ inputs: text }),
+  });
+
+  const data = await response.json();
+  return data[0]?.summary_text || "Résumé non disponible";
+};
+
+const detectGenreFromSummary = (summary) => {
+  if (!summary) return ["Genres inconnus"];
+
+  // Liste des genres et mots-clés associés
+  const genreKeywords = {
+    "Science-fiction": [
+      "futur",
+      "technologie",
+      "espace",
+      "robot",
+      "planète",
+      "extraterrestre",
+      "cybernétique",
+      "vaisseau",
+    ],
+    Fantasy: [
+      "magie",
+      "dragon",
+      "épée",
+      "sorcier",
+      "elfe",
+      "quêtes",
+      "royaume",
+      "sorcière",
+    ],
+    Mystère: [
+      "meurtre",
+      "disparition",
+      "enquête",
+      "crime",
+      "détective",
+      "mystère",
+    ],
+    Romance: ["amour", "relation", "passion", "couple", "cœur", "romance"],
+    Thriller: [
+      "suspense",
+      "danger",
+      "crime",
+      "tension",
+      "poursuite",
+      "révélation",
+      "meurtre",
+    ],
+    Horreur: [
+      "épouvante",
+      "monstre",
+      "fantôme",
+      "cauchemar",
+      "sang",
+      "horreur",
+      "peur",
+      "tueur",
+    ],
+    Dystopie: [
+      "révolte",
+      "contrôle",
+      "dictature",
+      "totalitaire",
+      "apocalypse",
+      "futur sombre",
+    ],
+    Historique: [
+      "empire",
+      "roi",
+      "révolution",
+      "mémoire",
+      "époque",
+      "guerre",
+      "héros",
+      "moyen-âge",
+    ],
+    Biographie: ["vie", "mémoires", "autobiographie", "historique", "réel"],
+    "Développement personnel": [
+      "confiance",
+      "réussite",
+      "épanouissement",
+      "croissance",
+    ],
+    Drame: ["tragédie", "souffrance", "perte", "destin", "émotion", "famille"],
+    Aventure: [
+      "voyage",
+      "exploration",
+      "survie",
+      "expédition",
+      "nature",
+      "découverte",
+    ],
+    Policier: ["police", "meurtre", "enquête", "criminel", "preuve", "justice"],
+  };
+
+  let matchedGenres = [];
+
+  // 🔍 Analyse du résumé pour détecter les genres
+  for (const [genre, keywords] of Object.entries(genreKeywords)) {
+    if (keywords.some((word) => summary.toLowerCase().includes(word))) {
+      matchedGenres.push(genre);
+    }
+  }
+
+  // 🚀 Exclure des genres incohérents
+  if (matchedGenres.includes("Biographie")) {
+    matchedGenres = matchedGenres.filter((genre) => genre !== "Biographie");
+  }
+
+  // 🛑 Exclure les genres incohérents comme "Policier"
+  if (matchedGenres.includes("Policier")) {
+    matchedGenres = matchedGenres.filter((genre) => genre !== "Policier");
+  }
+
+  // 🛑 S’assurer que les genres comme "Fantasy" sont exclus seulement quand ce n'est pas approprié
+  if (
+    matchedGenres.includes("Fantasy") &&
+    !summary.toLowerCase().includes("magie") &&
+    !summary.toLowerCase().includes("dragon")
+  ) {
+    matchedGenres = matchedGenres.filter((genre) => genre !== "Fantasy");
+  }
+
+  // 🛑 S'assurer qu'on a au moins 3 genres
+  if (matchedGenres.length < 3) {
+    const allGenres = Object.keys(genreKeywords);
+    while (matchedGenres.length < 3) {
+      const randomGenre =
+        allGenres[Math.floor(Math.random() * allGenres.length)];
+      if (!matchedGenres.includes(randomGenre)) {
+        matchedGenres.push(randomGenre);
+      }
+    }
+  }
+
+  return matchedGenres.length > 0 ? matchedGenres : ["Genres inconnus"];
+};
+
 module.exports = {
   fetchOpenLibraryData,
   fetchGoogleBooksData,
+  fetchHuggingFaceSummary,
+  detectGenreFromSummary,
 };
