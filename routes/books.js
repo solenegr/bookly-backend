@@ -43,7 +43,7 @@ router.get("/isbn/:isbn", async (req, res) => {
       console.log("✅ Résumé généré :", summary);
     }
 
-    // ✅ Si pas de genres, on les génère aussi
+    // ✅ Si pas de genres ou juste 1 seul, on les génère aussi
     if (
       !genres.length ||
       (genres.length === 1 && genres[0] === "Genres inconnus")
@@ -82,6 +82,8 @@ router.get("/isbn/:isbn", async (req, res) => {
       .json({ result: false, error: "Erreur de récupération des données" });
   }
 });
+// // // // console.log("🚀 ~ router.get ~ summary:", summary)
+// // // // console.log("🚀 ~ router.get ~ summary:", summary)
 
 // Route pour chercher un livre par titre
 router.get("/title/:title", async (req, res) => {
