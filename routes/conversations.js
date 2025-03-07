@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Conversation = require('../models/conversations'); 
+const Challenge = require('../models/challenges'); 
 const Pusher = require('pusher');
 const pusher = new Pusher({
   appId: process.env.PUSHER_APPID,
@@ -10,22 +11,16 @@ const pusher = new Pusher({
   cluster: process.env.PUSHER_CLUSTER,
   useTLS: true,
 });
-//join chat, il ajoute ce nouveau participant aux autre paticipants (users)
-router.put('/users/:username', (req, res) => {
-    pusher.trigger('chat', 'join', {
-      username: req.params.username,
-    });
-  
-    res.json({ result: true });
-  });
+
   
 
   // Ajouter un utilisateur à une conversation
-router.put("/:conversationId/add-user", async (req, res) => {
-    const { conversationId } = req.params;
-    const { userId } = req.body;
+router.put("/:conversationId/add-user/:userId", async (req, res) => {
+    const { conversationId,userId } = req.params;
+    
     // const conversationObjectId = new mongoose.Types.ObjectId(conversationId);
     // Vérifier si l'ID est valide
+
     if (!mongoose.Types.ObjectId.isValid(conversationId) || !mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ error: "IDs invalides" });
     }
@@ -44,6 +39,9 @@ router.put("/:conversationId/add-user", async (req, res) => {
 
         // Ajouter l'utilisateur et sauvegarder
         conversation.users.push(userId);
+        pusher.trigger('chat', 'join', {
+             username: req.params.username,
+            });
         await conversation.save();
 
         res.status(200).json({ result: true, message: "Utilisateur ajouté", conversation });
@@ -72,6 +70,9 @@ router.delete('/:conversationId/remove-user/:userId', async (req, res) => {
         // Supprimer l'utilisateur de la conversation
         conversation.users.splice(index, 1); // Retirer l'utilisateur du tableau
         await conversation.save(); // Sauvegarder les modifications
+        pusher.trigger('chat', 'leave', {
+            username: req.params.username,
+          });
 
         return res.status(200).json({ message: 'Utilisateur supprimé de la conversation' });
     } catch (error) {
@@ -80,14 +81,6 @@ router.delete('/:conversationId/remove-user/:userId', async (req, res) => {
 });
 
 
-  // Leave chat, il supprime ce nouveau participant aux autre paticipants (users)
-  router.delete("/users/:username", (req, res) => {
-    pusher.trigger('chat', 'leave', {
-      username: req.params.username,
-    });
-  
-    res.json({ result: true });
-  });
 // Créer une nouvelle conversation
 
 router.post('/', async (req, res) => {
@@ -103,13 +96,23 @@ router.post('/', async (req, res) => {
     }
 
     try {
+        const newChallenge = new Challenge({
+            title: "challenge3" ,
+                description: "4 livres par mois",
+                books: ["67cabe7ef1c7bf8bcacc5c51"],
+                duration: "1 mois",
+        })
+        newChallenge.save().then(async (data) =>{
         const newConversation = new Conversation({
             users,
-            challenge: challengeId,
+            challenge: data._id,
         });
-
         await newConversation.save();
         res.status(201).json({ result: true, conversation: newConversation });
+    }
+    )
+        
+      
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

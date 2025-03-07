@@ -15,4 +15,3 @@ const conversationSchema = mongoose.Schema(
 const Conversation = mongoose.model("conversations", conversationSchema);
 module.exports = Conversation;
 
-module.exports = Conversation;
