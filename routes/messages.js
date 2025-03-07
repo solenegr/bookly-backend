@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-
+const mongoose = require("mongoose");
 require('../models/connection');
 const Conversation = require('../models/conversations');
 const Message = require('../models/messages');
@@ -26,12 +26,25 @@ router.post('/message', (req, res) => {
 
 // Créer un message qui appartient a une conversation
 
-router.post('/:conversationId', async (req, res) => {
-  const { content, user } = req.body;
-  const { conversationId } = req.params;
+router.post('/:userId/conv/:conversationId', async (req, res) => {
+  const { content} = req.body;
+  const { conversationId, userId } = req.params;
+  console.log(conversationId);
+  console.log(userId);
+  console.log(content);
 
   try {
       
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "L'ID utilisateur est invalide" });
+    }
+
+      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+        return res.status(400).json({ error: "L'ID de conversation est invalide" });
+      }
+      if (!content || typeof content !== "string") {
+        return res.status(400).json({ error: "Le contenu du message est invalide" });
+      }
       const conversation = await Conversation.findById(conversationId);
       if (!conversation) {
           return res.status(404).json({ error: 'Conversation non trouvée' });
@@ -40,14 +53,15 @@ router.post('/:conversationId', async (req, res) => {
       
       const newMessage = new Message({
           content,
-          user,
+          user : userId,
           conversation: conversationId,
       });
 
-      
+      console.log("ok");
       await newMessage.save();
-
       
+       pusher.trigger('chat', 'message', req.body);
+       console.log(req.body);
       res.status(201).json({ result: true, message: newMessage });
   } catch (error) {
       res.status(500).json({ error: error.message });
