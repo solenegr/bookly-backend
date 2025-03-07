@@ -2,12 +2,20 @@ const mongoose = require("mongoose");
 
 const messageSchema = mongoose.Schema(
   {
-    content: { type: String, required: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    Conversation: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation" },
+    conversation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "conversations",
+      required: true,
+    }, // Référence à la conversation
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    }, // Expéditeur du message
+    content: { type: String, required: true }, // Contenu du message
   },
   { timestamps: true }
 );
 
-const Message = mongoose.model("messages", challengeSchema);
+const Message = mongoose.model("messages", messageSchema);
 module.exports = Message;
