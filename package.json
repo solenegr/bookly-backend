@@ -7,6 +7,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@pusher/pusher-websocket-react-native": "pusher/pusher-websocket-react-native",
     "bcrypt": "^5.1.1",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",

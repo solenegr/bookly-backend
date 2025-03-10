@@ -1,16 +1,17 @@
 require("dotenv").config();
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
 
-var indexRouter = require("./routes/index");
-var usersRouter = require("./routes/users");
-var booksRouter = require("./routes/books");
-var challengesRouter = require("./routes/challenges");
-var messagesRouter = require("./routes/messages");
-var conversationsRouter = require("./routes/conversations");
-var app = express();
+const indexRouter = require("./routes/index");
+const usersRouter = require("./routes/users");
+const booksRouter = require("./routes/books");
+const challengesRouter = require("./routes/challenges");
+const messagesRouter = require("./routes/messages");
+const conversationsRouter = require("./routes/conversations");
+const reviewRouter = require("./routes/reviews");
+const app = express();
 const cors = require("cors");
 app.use(cors());
 
@@ -26,4 +27,5 @@ app.use("/books", booksRouter);
 app.use("/challenges", challengesRouter);
 app.use("/messages", messagesRouter);
 app.use("/conversations", conversationsRouter);
+app.use("/reviews", reviewRouter);
 module.exports = app;
