@@ -3,6 +3,8 @@ var router = express.Router();
 
 require('../models/connection');
 const Challenge = require('../models/challenges');
+const Conversation = require('../models/conversations');
+const Message = require('../models/messages');
 //Ajouter un nouveau challenge
 router.post('/', async (req, res) => {
     const { title, description, duration, books} = req.body;
@@ -119,6 +121,35 @@ router.get('/:challengeId/books', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+//Récupérer tous les messages d’un challenge
+
+router.get('/:challengeId/messages', async (req, res) => {
+    const { challengeId } = req.params;
+  
+    try {
+        // Trouver toutes les conversations liées au challengeId
+        const conversations = await Conversation.find({ challenge: challengeId });
+  
+        if (!conversations.length) {
+            return res.status(404).json({ result: false, message: "Aucune conversation trouvée pour ce challenge" });
+        }
+  
+        // Extraire les IDs des conversations
+        const conversationIds = conversations.map(conv => conv._id);
+  
+        // Trouver tous les messages des conversations liées à ce challenge
+        const messages = await Message.find({ conversation: { $in: conversationIds } })
+            .populate('user', 'username') // Peupler avec les infos de l'utilisateur (uniquement username)
+            .populate('conversation', 'title') // Peupler avec le titre de la conversation
+            .sort({ createdAt: 1 }); // Trier par date croissante
+  
+        res.status(200).json({ result: true, messages });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+  });
+  
 
 
 module.exports = router;

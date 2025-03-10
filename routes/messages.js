@@ -60,7 +60,7 @@ router.post('/:userId/conv/:conversationId', async (req, res) => {
       console.log("ok");
       await newMessage.save();
       
-       pusher.trigger('chat', 'message', req.body);
+       pusher.trigger('chat', 'message', req.body.payload);
        console.log(req.body);
       res.status(201).json({ result: true, message: newMessage });
   } catch (error) {
