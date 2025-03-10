@@ -13,7 +13,7 @@ const LibrarySchema = mongoose.Schema(
         },
         status: {
           type: String,
-          enum: ["reading", "completed", "want to read", "none"],
+          enum: ["A lire", "En cours de lecture", "Terminé", "none"],
           required: true,
         },
         added_at: { type: Date, default: Date.now },
