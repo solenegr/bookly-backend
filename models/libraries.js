@@ -2,7 +2,11 @@ const mongoose = require("mongoose");
 
 const LibrarySchema = mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "users", required: true },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "users",
+      required: true,
+    },
     isPublic: { type: Boolean, default: true },
     readings: [
       {

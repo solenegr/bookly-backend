@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const authMiddleware = require("../middlewares/auth");
+const Book = require("../models/books");
 
 // router.use(authMiddleware);
 
@@ -73,13 +73,17 @@ router.get("/title/:title", async (req, res) => {
 
 router.get("/isbn/:isbn", async (req, res) => {
   try {
-    console.log("Requête ISBN reçue :", req.params);
     const { isbn } = req.params;
 
     if (!isbn) {
       return res
         .status(400)
         .json({ result: false, error: "L'ISBN est requis dans l'URL." });
+    }
+
+    let book = await Book.findOne({ isbn });
+    if (book) {
+      return res.status(200).json({ result: true, book });
     }
 
     // 3️⃣ Requête à l’API ISBNdb
@@ -109,7 +113,7 @@ router.get("/isbn/:isbn", async (req, res) => {
       });
     }
 
-    const book = {
+    book = {
       title: data.book.title || "Titre non disponible",
       author: data.book.authors ? data.book.authors[0] : "Auteur inconnu",
       volume: data.book.volume ? Number(data.book.volume) : 0,
@@ -126,7 +130,10 @@ router.get("/isbn/:isbn", async (req, res) => {
       isbn: data.book.isbn13 || isbn,
     };
 
-    res.status(200).json({ result: true, book });
+    const newBook = new Book(book);
+    await newBook.save();
+
+    return res.status(200).json({ result: true, book: newBook });
   } catch (error) {
     console.error("Erreur serveur :", error);
     res.status(500).json({
@@ -149,9 +156,11 @@ router.get("/author/:author", async (req, res) => {
       });
     }
 
-    // 2️⃣ Requête à l’API ISBNdb avec l'index "authors"
+    // 2️⃣ Requête à l’API ISBNdb avec l'index "author"
     const response = await fetch(
-      `https://api2.isbndb.com/search/authors?q=${encodeURIComponent(author)}`,
+      `https://api2.isbndb.com/books/${encodeURIComponent(
+        author
+      )}?page=1&pageSize=20&column=author&language=fr`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -169,25 +178,35 @@ router.get("/author/:author", async (req, res) => {
     }
 
     const data = await response.json();
+    console.log("Réponse API :", data);
 
-    // 4️⃣ Vérifier si des auteurs existent dans la réponse API
-    if (!data.authors || data.authors.length === 0) {
+    // 4️⃣ Vérifier si des livres existent
+    if (!data.books || data.books.length === 0) {
       return res.status(404).json({
         result: false,
-        error: "Aucun auteur trouvé.",
+        error: "Aucun livre trouvé pour cet auteur.",
       });
     }
 
-    // 5️⃣ Transformer la liste des auteurs en un format propre
-    const formattedAuthors = data.authors.map((authorData) => ({
-      name: authorData.name || "Nom inconnu",
-      books: authorData.books || [],
-      birthDate: authorData.birth_date || "Date inconnue",
-      deathDate: authorData.death_date || "Encore vivant",
-      bio: authorData.bio || "Biographie non disponible",
+    // 5️⃣ Transformer la liste des livres en un format structuré
+    const books = data.books.map((book) => ({
+      title: book.title || "Titre non disponible",
+      author: book.authors ? book.authors[0] : "Auteur inconnu",
+      volume: book.volume ? Number(book.volume) : 0,
+      summary: book.synopsis || "Résumé non disponible",
+      publisher: book.publisher || "Éditeur inconnu",
+      pages: book.pages ? Number(book.pages) : undefined,
+      cover: book.image || "Image non disponible",
+      publicationYear: book.date_published
+        ? new Date(book.date_published)
+        : undefined,
+      genres: book.subjects || [],
+      rating: 0,
+      reviewCount: 0,
+      isbn: book.isbn13 || book.isbn || "ISBN non disponible",
     }));
 
-    res.status(200).json({ result: true, authors: formattedAuthors });
+    res.status(200).json({ result: true, books });
   } catch (error) {
     console.error("Erreur serveur :", error);
     res.status(500).json({

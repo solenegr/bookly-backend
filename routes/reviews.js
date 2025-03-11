@@ -3,7 +3,7 @@ const router = express.Router();
 const Review = require("../models/reviews");
 const Pusher = require("pusher");
 const mongoose = require("mongoose");
-const User = require("../models/users");
+const authMiddleware = require("../middlewares/auth");
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APPID,
@@ -13,10 +13,12 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
+// router.use(authMiddleware);
+
 router.get("/", async (req, res) => {
   try {
     const { book } = req.query;
-
+    console.log("test", req.query);
     if (!book) {
       return res.status(400).json({ error: "bookId est requis" });
     }
