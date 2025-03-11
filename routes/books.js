@@ -1,5 +1,7 @@
 const router = require("express").Router();
 const Book = require("../models/books");
+const Book = require("../models/books");
+// const authMiddleware = require("../middlewares/auth");
 
 // router.use(authMiddleware);
 
@@ -142,7 +144,6 @@ router.get("/isbn/:isbn", async (req, res) => {
     });
   }
 });
-
 router.get("/author/:author", async (req, res) => {
   try {
     console.log("Requête auteur reçue :", req.params);
@@ -215,5 +216,25 @@ router.get("/author/:author", async (req, res) => {
     });
   }
 });
+
+// router.post("/", async (req, res) => {
+//   try {
+//     const { title, author, volume, summary, publisher, pages, cover, publicationYear,genres,rating ,reviewCount, isbn} = req.body;
+//     // Vérifie si le livre existe déjà via l'ISBN
+//     const existingBook = await Book.findOne({ isbn });
+//     if (existingBook) {
+//       return res.status(400).json({ success: false, message: "Ce livre existe déjà." });
+//     }
+
+//     // Création du livre
+//     const newBook = new Book({ title, author, volume, summary, publisher, pages, cover, publicationYear,genres,rating ,reviewCount, isbn});
+//     await newBook.save();
+
+//     res.status(201).json({ success: true, message: "Livre ajouté avec succès.", book: newBook });
+//   } catch (error) {
+//     console.error("Erreur lors de l'ajout du livre :", error);
+//     res.status(500).json({ success: false, message: "Erreur serveur." });
+//   }
+// });
 
 module.exports = router;

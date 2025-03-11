@@ -17,7 +17,7 @@ const LibrarySchema = mongoose.Schema(
         },
         status: {
           type: String,
-          enum: ["reading", "completed", "want to read", "none"],
+          enum: ["A lire", "En cours de lecture", "Terminé", "none"],
           required: true,
         },
         added_at: { type: Date, default: Date.now },
@@ -29,6 +29,6 @@ const LibrarySchema = mongoose.Schema(
 );
 
 // Création du modèle
-const Library = mongoose.model("labraries", ReadingListSchema);
+const Library = mongoose.model("libraries", LibrarySchema);
 
 module.exports = Library;
