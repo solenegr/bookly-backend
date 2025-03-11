@@ -5,6 +5,7 @@ require("../models/connection");
 const Challenge = require("../models/challenges");
 const Conversation = require("../models/conversations");
 const Message = require("../models/messages");
+
 //Ajouter un nouveau challenge
 router.post("/", async (req, res) => {
   const { title, description, duration, books } = req.body;
@@ -138,12 +139,10 @@ router.get("/:challengeId/messages", async (req, res) => {
     const conversations = await Conversation.find({ challenge: challengeId });
 
     if (!conversations.length) {
-      return res
-        .status(404)
-        .json({
-          result: false,
-          message: "Aucune conversation trouvée pour ce challenge",
-        });
+      return res.status(404).json({
+        result: false,
+        message: "Aucune conversation trouvée pour ce challenge",
+      });
     }
 
     // Extraire les IDs des conversations
