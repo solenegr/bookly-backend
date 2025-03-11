@@ -7,7 +7,7 @@ const Book = require("../models/books");
 router.get("/title/:title", async (req, res) => {
   try {
     const { title } = req.params;
-
+    console.log("Requête titre reçue :", req.params);
     // 1️⃣ Vérifier si le titre est fourni
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
