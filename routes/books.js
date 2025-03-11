@@ -1,182 +1,199 @@
-const express = require("express");
-const Book = require("../models/books");
-const router = express.Router();
-const {
-  fetchOpenLibraryData,
-  fetchGoogleBooksData,
-  fetchHuggingFaceSummary,
-  detectGenreFromSummary,
-} = require("../services/bookService");
+const router = require("express").Router();
+const authMiddleware = require("../middlewares/auth");
 
-// 🚀 Recherche par ISBN
-router.get("/isbn/:isbn", async (req, res) => {
-  try {
-    const { isbn } = req.params;
+// router.use(authMiddleware);
 
-    let book = await Book.findOne({ isbn });
-    if (book) {
-      return res.status(200).json({ result: true, book, source: "database" });
-    }
-
-    const [openLibData, googleData] = await Promise.all([
-      fetchOpenLibraryData(isbn, true),
-      fetchGoogleBooksData(isbn, true),
-    ]);
-
-    if (!openLibData.length && !googleData.length)
-      return res.status(404).json({ result: false, error: "Book not found" });
-
-    let summary = googleData[0]?.summary || openLibData[0]?.summary || null;
-    let genres =
-      googleData[0]?.genres.length > 0
-        ? googleData[0]?.genres
-        : openLibData[0]?.genres.length > 0
-        ? openLibData[0]?.genres
-        : [];
-
-    // ✅ Si pas de résumé, on le génère avec Hugging Face
-    if (!summary) {
-      console.log("🔄 Génération du résumé avec Hugging Face...");
-      summary = await fetchHuggingFaceSummary(
-        googleData[0]?.title || openLibData[0]?.title || "Pas de titre"
-      );
-      console.log("✅ Résumé généré :", summary);
-    }
-
-    // ✅ Si pas de genres ou juste 1 seul, on les génère aussi
-    if (
-      !genres.length ||
-      (genres.length === 1 && genres[0] === "Genres inconnus")
-    ) {
-      console.log("🔄 Génération des genres avec Hugging Face...");
-      genres = detectGenreFromSummary(summary);
-      console.log("✅ Genres générés :", genres);
-    }
-
-    const bookDetails = {
-      isbn,
-      title: openLibData[0]?.title || googleData[0]?.title || "Titre inconnu",
-      author:
-        googleData[0]?.author || openLibData[0]?.author || "Auteur inconnu",
-      summary,
-      pages: googleData[0]?.pages || openLibData[0]?.pages || "Inconnu",
-      publicationYear:
-        googleData[0]?.publicationYear ||
-        openLibData[0]?.publicationYear ||
-        "Inconnu",
-      genres,
-      cover:
-        googleData[0]?.cover || openLibData[0]?.cover || "Pas de couverture",
-    };
-
-    if (bookDetails.title !== "Titre inconnu") {
-      const newBook = new Book(bookDetails);
-      await newBook.save();
-    }
-
-    res.status(200).json({ result: true, book: bookDetails, source: "api" });
-  } catch (error) {
-    console.error("❌ Erreur :", error);
-    res
-      .status(500)
-      .json({ result: false, error: "Erreur de récupération des données" });
-  }
-});
-// // // // console.log("🚀 ~ router.get ~ summary:", summary)
-// // // // console.log("🚀 ~ router.get ~ summary:", summary)
-
-// Route pour chercher un livre par titre
 router.get("/title/:title", async (req, res) => {
   try {
-    const titleQuery = req.params.title;
+    const { title } = req.params;
 
-    // 🔎 Vérifie si le livre est déjà en base
-    const existingBooks = await Book.find({
-      title: new RegExp(titleQuery, "i"),
-    });
-
-    if (existingBooks.length > 0) {
-      return res
-        .status(200)
-        .json({ result: true, data: existingBooks, source: "database" });
+    // 1️⃣ Vérifier si le titre est fourni
+    if (!title || title.trim().length === 0) {
+      return res.status(400).json({
+        result: false,
+        error: "Le titre du livre est requis dans l'URL.",
+      });
     }
 
-    // 🔍 Récupération depuis l'API Google Books
-    const googleResponse = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(
-        titleQuery
-      )}&maxResults=5&langRestrict=fr`
+    // 2️⃣ Requête à l’API ISBNdb
+    const response = await fetch(
+      `https://api2.isbndb.com/books/${encodeURIComponent(title)}?language=fr`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: process.env.ISBNDB_API_KEY,
+        },
+      }
     );
-    const googleData = await googleResponse.json();
 
-    if (!googleData.items || googleData.items.length === 0) {
-      return res
-        .status(404)
-        .json({ result: false, message: "Aucun livre trouvé" });
+    // 3️⃣ Vérifier si l'API répond avec une erreur
+    if (!response.ok) {
+      return res.status(response.status).json({
+        result: false,
+        error: `Erreur API: ${response.status} - ${response.statusText}`,
+      });
     }
 
-    // 📥 Formatage et sauvegarde en DB
-    const books = await Promise.all(
-      googleData.items.map(async (item) => {
-        const volumeInfo = item.volumeInfo;
+    const data = await response.json();
 
-        let summary =
-          volumeInfo.language === "fr" ? volumeInfo.description || null : null;
+    // 4️⃣ Vérifier si des livres existent dans la réponse API
+    if (!data.books || data.books.length === 0) {
+      return res.status(404).json({
+        result: false,
+        error: "Aucun livre trouvé pour ce titre.",
+      });
+    }
+    // 5️⃣ Transformer chaque livre pour suivre le format Mongoose
+    const books = data.books.map((book) => ({
+      title: book.title || "Titre non disponible",
+      author: book.authors ? book.authors[0] : "Auteur inconnu",
+      volume: book.volume ? Number(book.volume) : undefined,
+      summary: book.synopsis || "Résumé non disponible",
+      publisher: book.publisher || "Éditeur inconnu",
+      pages: book.pages ? Number(book.pages) : undefined,
+      cover: book.image || "Image non disponible",
+      publicationYear: book.date_published
+        ? new Date(book.date_published)
+        : undefined,
+      genres: book.subjects || [],
+      rating: book.rating ? Number(book.rating) : 0,
+      reviewCount: book.review_count ? Number(book.review_count) : 0,
+      isbn: book.isbn13 || "ISBN non disponible",
+    }));
 
-        let genres = volumeInfo.categories || [];
-
-        // ✅ Générer un résumé avec Hugging Face si nécessaire
-        if (!summary) {
-          console.log("🔄 Génération du résumé avec Hugging Face...");
-          summary = await fetchHuggingFaceSummary(
-            volumeInfo.title || "Titre inconnu"
-          );
-          console.log("✅ Résumé généré :", summary);
-        }
-
-        // ✅ Générer les genres avec Hugging Face si nécessaire
-        if (
-          !genres.length ||
-          genres[0] === "Genres inconnus" ||
-          genres.length === 1
-        ) {
-          console.log("🔄 Génération des genres avec Hugging Face...");
-          genres = detectGenreFromSummary(summary);
-          console.log("✅ Genres générés :", genres);
-        }
-
-        const bookData = {
-          isbn:
-            volumeInfo.industryIdentifiers?.[0]?.identifier || "ISBN inconnu",
-          title: volumeInfo.title || "Titre inconnu",
-          author: volumeInfo.authors
-            ? volumeInfo.authors.join(", ")
-            : "Auteur inconnu",
-          summary,
-          pages: volumeInfo.pageCount || null,
-          publicationYear: volumeInfo.publishedDate?.split("-")[0] || "Inconnu",
-          genres,
-          cover: volumeInfo.imageLinks?.thumbnail || "Pas de couverture",
-        };
-
-        // 🔄 Sauvegarde uniquement si le livre n'existe pas déjà
-        const existingBook = await Book.findOne({ isbn: bookData.isbn });
-        if (!existingBook) {
-          return Book.create(bookData);
-        }
-
-        return existingBook; // Si déjà existant, le renvoyer
-      })
-    );
-
-    res
-      .status(200)
-      .json({ result: true, data: books, source: "Google Books API" });
+    res.status(200).json({ result: true, books });
   } catch (error) {
-    console.error("❌ Erreur :", error);
-    res
-      .status(500)
-      .json({ result: false, error: "Erreur de récupération des données" });
+    console.error("Erreur serveur :", error);
+    res.status(500).json({
+      result: false,
+      error: "Erreur interne lors de la récupération des livres.",
+    });
+  }
+});
+
+router.get("/isbn/:isbn", async (req, res) => {
+  try {
+    console.log("Requête ISBN reçue :", req.params);
+    const { isbn } = req.params;
+
+    if (!isbn) {
+      return res
+        .status(400)
+        .json({ result: false, error: "L'ISBN est requis dans l'URL." });
+    }
+
+    // 3️⃣ Requête à l’API ISBNdb
+    const response = await fetch(
+      `https://api2.isbndb.com/book/${isbn}?language=fr`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: process.env.ISBNDB_API_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        result: false,
+        error: `Erreur API: ${response.status} - ${response.statusText}`,
+      });
+    }
+
+    const data = await response.json();
+
+    if (!data.book) {
+      return res.status(404).json({
+        result: false,
+        error: "Aucun livre trouvé pour cet ISBN.",
+      });
+    }
+
+    const book = {
+      title: data.book.title || "Titre non disponible",
+      author: data.book.authors ? data.book.authors[0] : "Auteur inconnu",
+      volume: data.book.volume ? Number(data.book.volume) : 0,
+      summary: data.book.synopsis || "Résumé non disponible",
+      publisher: data.book.publisher || "Éditeur inconnu",
+      pages: data.book.pages ? Number(data.book.pages) : undefined,
+      cover: data.book.image || "Image non disponible",
+      publicationYear: data.book.date_published
+        ? new Date(data.book.date_published)
+        : undefined,
+      genres: data.book.subjects || [],
+      rating: 0,
+      reviewCount: 0,
+      isbn: data.book.isbn13 || isbn,
+    };
+
+    res.status(200).json({ result: true, book });
+  } catch (error) {
+    console.error("Erreur serveur :", error);
+    res.status(500).json({
+      result: false,
+      error: "Erreur interne lors de la récupération du livre.",
+    });
+  }
+});
+
+router.get("/author/:author", async (req, res) => {
+  try {
+    console.log("Requête auteur reçue :", req.params);
+    const { author } = req.params;
+
+    // 1️⃣ Vérifier si l’auteur est fourni
+    if (!author || author.trim().length === 0) {
+      return res.status(400).json({
+        result: false,
+        error: "Le nom de l'auteur est requis dans l'URL.",
+      });
+    }
+
+    // 2️⃣ Requête à l’API ISBNdb avec l'index "authors"
+    const response = await fetch(
+      `https://api2.isbndb.com/search/authors?q=${encodeURIComponent(author)}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: process.env.ISBNDB_API_KEY,
+        },
+      }
+    );
+
+    // 3️⃣ Vérifier si l'API répond avec une erreur
+    if (!response.ok) {
+      return res.status(response.status).json({
+        result: false,
+        error: `Erreur API: ${response.status} - ${response.statusText}`,
+      });
+    }
+
+    const data = await response.json();
+
+    // 4️⃣ Vérifier si des auteurs existent dans la réponse API
+    if (!data.authors || data.authors.length === 0) {
+      return res.status(404).json({
+        result: false,
+        error: "Aucun auteur trouvé.",
+      });
+    }
+
+    // 5️⃣ Transformer la liste des auteurs en un format propre
+    const formattedAuthors = data.authors.map((authorData) => ({
+      name: authorData.name || "Nom inconnu",
+      books: authorData.books || [],
+      birthDate: authorData.birth_date || "Date inconnue",
+      deathDate: authorData.death_date || "Encore vivant",
+      bio: authorData.bio || "Biographie non disponible",
+    }));
+
+    res.status(200).json({ result: true, authors: formattedAuthors });
+  } catch (error) {
+    console.error("Erreur serveur :", error);
+    res.status(500).json({
+      result: false,
+      error: "Erreur interne lors de la récupération des auteurs.",
+    });
   }
 });
 
