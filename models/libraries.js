@@ -25,6 +25,6 @@ const LibrarySchema = mongoose.Schema(
 );
 
 // Création du modèle
-const Library = mongoose.model("labraries", ReadingListSchema);
+const Library = mongoose.model("libraries", LibrarySchema);
 
 module.exports = Library;
