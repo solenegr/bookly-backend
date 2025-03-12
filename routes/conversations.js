@@ -13,7 +13,7 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 // Ajouter un utilisateur à une conversation
 router.put("/:conversationId/add-user/:userId", async (req, res) => {
@@ -95,22 +95,27 @@ router.delete("/:conversationId/remove-user/:userId", async (req, res) => {
 // Créer une nouvelle conversation
 
 router.post("/", async (req, res) => {
-  const { users, challengeId } = req.body;
+  const { users, title, description, books, duration } = req.body;
+
+  const newChallenge = new Challenge({
+    title: title || "Challenge par défaut",
+    description: description || "Description par défaut",
+    books: books || [],
+    duration: duration || "Durée non précisée",
+  });
 
   if (!Array.isArray(users) || users.length === 0) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "La liste des utilisateurs doit être un tableau et ne peut pas être vide",
-      });
+    return res.status(400).json({
+      error:
+        "La liste des utilisateurs doit être un tableau et ne peut pas être vide",
+    });
   }
 
-  if (challengeId && !/^[0-9a-fA-F]{24}$/.test(challengeId)) {
-    return res
-      .status(400)
-      .json({ error: "Le challengeId doit être un ID valide" });
-  }
+  // if (challengeId && !/^[0-9a-fA-F]{24}$/.test(challengeId)) { //deso rania mais c'est la qu'on va creer le challenge    donc je ne peux pas te passer d'id
+  //   return res
+  //     .status(400)
+  //     .json({ error: "Le challengeId doit être un ID valide" });
+  // }
 
   try {
     const newChallenge = new Challenge({
@@ -139,12 +144,10 @@ router.put("/:conversationId", async (req, res) => {
 
   // Validation manuelle
   if (users && (!Array.isArray(users) || users.length === 0)) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "La liste des utilisateurs doit être un tableau et ne peut pas être vide",
-      });
+    return res.status(400).json({
+      error:
+        "La liste des utilisateurs doit être un tableau et ne peut pas être vide",
+    });
   }
 
   if (challengeId && !/^[0-9a-fA-F]{24}$/.test(challengeId)) {
@@ -192,12 +195,10 @@ router.get("/challenge/:challengeId", async (req, res) => {
       .populate("challenge", "title"); // Peupler le champ 'challengeId' avec le titre du challenge
 
     if (!conversations || conversations.length === 0) {
-      return res
-        .status(404)
-        .json({
-          result: false,
-          message: "Aucune conversation trouvée pour ce challenge",
-        });
+      return res.status(404).json({
+        result: false,
+        message: "Aucune conversation trouvée pour ce challenge",
+      });
     }
 
     res.status(200).json({ result: true, conversations });
@@ -258,12 +259,10 @@ router.get("/challenge/:challengeId/participants", async (req, res) => {
       .select("users"); // Sélectionner uniquement les utilisateurs des conversations
     console.log("cccc", conversations);
     if (!conversations || conversations.length === 0) {
-      return res
-        .status(404)
-        .json({
-          result: false,
-          message: "Aucune conversation trouvée pour ce challenge",
-        });
+      return res.status(404).json({
+        result: false,
+        message: "Aucune conversation trouvée pour ce challenge",
+      });
     }
 
     // Extraire tous les utilisateurs uniques des conversations

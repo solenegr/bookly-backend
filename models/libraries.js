@@ -4,7 +4,7 @@ const LibrarySchema = mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "users",
+      ref: "User",
       required: true,
     },
     isPublic: { type: Boolean, default: true },
@@ -12,7 +12,7 @@ const LibrarySchema = mongoose.Schema(
       {
         book: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "books",
+          ref: "Book",
           required: true,
         },
         status: {
@@ -29,6 +29,6 @@ const LibrarySchema = mongoose.Schema(
 );
 
 // Création du modèle
-const Library = mongoose.model("libraries", LibrarySchema);
+const Library = mongoose.model("Library", LibrarySchema);
 
 module.exports = Library;

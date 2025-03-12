@@ -48,14 +48,14 @@ router.get("/title/:title", async (req, res) => {
     const books = data.books.map((book) => ({
       title: book.title || "Titre non disponible",
       author: book.authors ? book.authors[0] : "Auteur inconnu",
-      volume: book.volume ? Number(book.volume) : undefined,
+      volume: book.volume ? Number(book.volume) : 0,
       summary: book.synopsis || "Résumé non disponible",
       publisher: book.publisher || "Éditeur inconnu",
-      pages: book.pages ? Number(book.pages) : undefined,
+      pages: book.pages ? Number(book.pages) : 0,
       cover: book.image || "Image non disponible",
       publicationYear: book.date_published
         ? new Date(book.date_published)
-        : undefined,
+        : "année inconnue",
       genres: book.subjects || [],
       rating: book.rating ? Number(book.rating) : 0,
       reviewCount: book.review_count ? Number(book.review_count) : 0,
@@ -120,11 +120,11 @@ router.get("/isbn/:isbn", async (req, res) => {
       volume: data.book.volume ? Number(data.book.volume) : 0,
       summary: data.book.synopsis || "Résumé non disponible",
       publisher: data.book.publisher || "Éditeur inconnu",
-      pages: data.book.pages ? Number(data.book.pages) : undefined,
+      pages: data.book.pages ? Number(data.book.pages) : 0,
       cover: data.book.image || "Image non disponible",
       publicationYear: data.book.date_published
         ? new Date(data.book.date_published)
-        : undefined,
+        : "année inconnue",
       genres: data.book.subjects || [],
       rating: 0,
       reviewCount: 0,
@@ -195,11 +195,11 @@ router.get("/author/:author", async (req, res) => {
       volume: book.volume ? Number(book.volume) : 0,
       summary: book.synopsis || "Résumé non disponible",
       publisher: book.publisher || "Éditeur inconnu",
-      pages: book.pages ? Number(book.pages) : undefined,
+      pages: book.pages ? Number(book.pages) : 0,
       cover: book.image || "Image non disponible",
       publicationYear: book.date_published
         ? new Date(book.date_published)
-        : undefined,
+        : "année inconnue",
       genres: book.subjects || [],
       rating: 0,
       reviewCount: 0,

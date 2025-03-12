@@ -52,14 +52,14 @@ router.post("/signin", (req, res) => {
   });
 });
 
-router.get("/all", async (req, res) => {
-  if (!req.query.username.length || !req.query.username.trim().length)
+router.get("/all/:username", async (req, res) => {
+  if (!req.params.username.length || !req.params.username.trim().length)
     return res
       .status(400)
       .json({ result: false, error: "username not provided" });
 
   const users = await User.find({
-    username: { $regex: "^" + req.query.username, $options: "i" },
+    username: { $regex: "^" + req.params.username, $options: "i" },
   });
 
   const filteredUsers = users.map((user) => {
