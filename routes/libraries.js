@@ -1,16 +1,28 @@
-const express = require('express');
-const Library = require('../models/libraries'); 
+const express = require("express");
+require("../models/books");
+
+const Library = require("../models/libraries");
 const router = express.Router();
 
 // Ajouter un livre à la bibliothèque
-router.post('/add-to-library', async (req, res) => {
-  const { userId, bookId, status, genres } = req.body; // Récupération des données envoyées par l'utilisateur
+router.post("/add-to-library", async (req, res) => {
+  const { bookId, genres, status, userId } = req.body;
+
+  console.log("Requête reçue:", req.body);
+
+  // Vérifier que userId est bien présent
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      message: "L'ID utilisateur (userId) est requis.",
+    });
+  }
 
   try {
-    // Trouver la bibliothèque de l'utilisateur
+    // Vérifier si la bibliothèque de l'utilisateur existe
     let library = await Library.findOne({ user: userId });
 
-    // Si la bibliothèque n'existe pas, créer une nouvelle bibliothèque
+    // Si la bibliothèque n'existe pas, en créer une nouvelle avec un user défini
     if (!library) {
       library = new Library({
         user: userId,
@@ -24,25 +36,34 @@ router.post('/add-to-library', async (req, res) => {
     );
 
     if (bookIndex === -1) {
-      // Si le livre n'est pas dans la bibliothèque, ajouter un nouveau livre
+      // Ajouter un nouveau livre
       library.readings.push({
         book: bookId,
-        status: status,
+        status: status || "A lire",
         genres: genres || [],
       });
     } else {
-      // Si le livre existe déjà, mettre à jour son statut ou d'autres informations si nécessaire
-      library.readings[bookIndex].status = status;
-      library.readings[bookIndex].genres = genres || [];
+      // Mettre à jour les informations du livre existant
+      library.readings[bookIndex].status =
+        status || library.readings[bookIndex].status;
+      library.readings[bookIndex].genres =
+        genres || library.readings[bookIndex].genres;
     }
 
-    // Sauvegarder les modifications dans la base de données
+    // Sauvegarder la bibliothèque mise à jour
     await library.save();
 
-    res.status(200).json({ success: true, message: 'Livre ajouté avec succès !', library });
+    res.status(200).json({
+      success: true,
+      message: "Livre ajouté avec succès !",
+      library,
+    });
   } catch (error) {
-    console.error('Erreur lors de l\'ajout du livre à la bibliothèque:', error);
-    res.status(500).json({ success: false, message: 'Erreur interne du serveur' });
+    console.error("Erreur lors de l'ajout du livre à la bibliothèque:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur interne du serveur",
+    });
   }
 });
 
@@ -50,30 +71,44 @@ router.post('/add-to-library', async (req, res) => {
 router.get("/user/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+    const { search } = req.query;
 
     // Rechercher la bibliothèque associée à cet utilisateur et peupler les livres
-    const library = await Library.findOne({ user: userId }).populate("readings.book");
+    const library = await Library.findOne({ user: userId }).populate(
+      "readings.book"
+    );
 
     if (!library) {
-      return res.status(404).json({ success: false, message: "Bibliothèque non trouvée" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Bibliothèque non trouvée" });
     }
 
     // Extraire uniquement les livres de cette bibliothèque
-    const books = library.readings.map((reading) => ({
+    let books = library.readings.map((reading) => ({
       title: reading.book.title,
       author: reading.book.author,
-      volume: reading.book.volume || "N/A",
+      volume: reading.book.volume || 1,
       summary: reading.book.summary || "Pas de résumé",
       publisher: reading.book.publisher || "Inconnu",
       pages: reading.book.pages || "Inconnu",
       cover: reading.book.cover,
       publicationYear: reading.book.publicationYear || "Non précisé",
-      genre: reading.book.genres || [], 
+      genre: reading.book.genres || [],
       rating: reading.book.rating || 0,
       reviewCount: reading.book.reviewCount || 0,
       isbn: reading.book.isbn || "Non disponible",
       status: reading.status, // Ajout du statut de lecture
     }));
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      books = books.filter(
+        (book) =>
+          book.title.toLowerCase().includes(searchLower) ||
+          book.author.toLowerCase().includes(searchLower)
+      );
+    }
 
     res.status(200).json({ success: true, books });
   } catch (error) {
@@ -81,7 +116,5 @@ router.get("/user/:userId", async (req, res) => {
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 });
-
-
 
 module.exports = router;

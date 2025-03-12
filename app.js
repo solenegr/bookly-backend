@@ -16,6 +16,10 @@ const app = express();
 const cors = require("cors");
 app.use(cors());
 
+// 🔥 Import des modèles au démarrage
+require("./models/books");
+require("./models/libraries");
+
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -30,4 +34,5 @@ app.use("/messages", messagesRouter);
 app.use("/conversations", conversationsRouter);
 app.use("/reviews", reviewRouter);
 app.use("/libraries", libraryRouter);
+
 module.exports = app;
