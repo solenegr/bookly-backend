@@ -3,7 +3,24 @@ require("../models/books");
 
 const Library = require("../models/libraries");
 const router = express.Router();
+// Route pour récupérer la bibliothèque d'un utilisateur
+router.get("/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
 
+    // Chercher la bibliothèque de l'utilisateur avec les livres associés
+    const library = await Library.findOne({ user: userId }).populate("readings.book");
+
+    if (!library) {
+      return res.status(404).json({ message: "Bibliothèque non trouvée pour cet utilisateur" });
+    }
+
+    res.json({result: true,library:library});
+  } catch (error) {
+    console.error("Erreur lors de la récupération de la bibliothèque :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
 // Ajouter un livre à la bibliothèque
 router.post("/add-to-library", async (req, res) => {
   const { bookId, genres, status, userId } = req.body;
