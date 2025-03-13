@@ -15,6 +15,7 @@ const pusher = new Pusher({
 
 // router.use(authMiddleware);
 
+//route pour récup les comm d'un livre spé
 router.get("/", async (req, res) => {
   try {
     const { book } = req.query;
@@ -31,6 +32,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+//route pour poster comm d'un livre spé
 router.post("/", async (req, res) => {
   try {
     let { content, book, user, note } = req.body;
@@ -60,7 +62,7 @@ router.post("/", async (req, res) => {
     console.log("Review après populate :", populatedReview);
 
     // 🔥 Envoie l'event avec Pusher avec l'user complet
-    pusher.trigger("book-reviews", "new-review", populatedReview);
+    pusher.trigger(`book-reviews-${book}`, "new-review", populatedReview);
 
     res.status(201).json({ result: true, review: populatedReview });
   } catch (error) {
@@ -69,6 +71,7 @@ router.post("/", async (req, res) => {
   }
 });
 
+//route pour ajouter un like sur un comm
 router.patch("/:reviewId/like", async (req, res) => {
   try {
     const { userId } = req.body;
@@ -115,6 +118,20 @@ router.patch("/:reviewId/like", async (req, res) => {
     console.error("Erreur lors du like de la review :", error);
     res.status(500).json({ error: error.message });
   }
+});
+
+//route pour récup les comm d'un user
+router.get("/:userId", (req, res) => {
+  const userId = req.params.userId;
+  Review.find({ user: userId })
+  .populate('book', 'cover title author isbn genres')
+  .then((data) => {
+    if (data === null) {
+      res.status(404).json({ result: false });
+    } else {
+      res.status(200).json({ result: true, reviews: data });
+    }
+  });
 });
 
 module.exports = router;

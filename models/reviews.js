@@ -4,8 +4,8 @@ const reviewSchema = mongoose.Schema(
   {
     content: { type: String, required: true },
     note: { type: Number, required: true },
-    book: { type: mongoose.Schema.Types.ObjectId, ref: "books" },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+    book: { type: mongoose.Schema.Types.ObjectId, ref: "Book" },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     likes: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "users",
