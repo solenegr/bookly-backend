@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const conversationSchema = mongoose.Schema(
   {
-    users: { type: [mongoose.Schema.Types.ObjectId], ref: "users" }, //Liste de participants
+    users: { type: [mongoose.Schema.Types.ObjectId], ref: "User" }, //Liste de participants
     challenge: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "challenges",
@@ -12,6 +12,5 @@ const conversationSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-const Conversation = mongoose.model("conversations", conversationSchema);
+const Conversation = mongoose.model("Conversation", conversationSchema);
 module.exports = Conversation;
-

@@ -3,7 +3,7 @@ const router = express.Router();
 const Review = require("../models/reviews");
 const Pusher = require("pusher");
 const mongoose = require("mongoose");
-const User = require("../models/users");
+const authMiddleware = require("../middlewares/auth");
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APPID,
@@ -13,11 +13,12 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
+// router.use(authMiddleware);
 
 router.get("/", async (req, res) => {
   try {
     const { book } = req.query;
-
+    console.log("test", req.query);
     if (!book) {
       return res.status(400).json({ error: "bookId est requis" });
     }
@@ -39,9 +40,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Tous les champs sont requis." });
     }
 
-    book = new mongoose.Types.ObjectId(book);
+    // book = new mongoose.Types.ObjectId(book);
     user = new mongoose.Types.ObjectId(user);
-
+    console.log("BOOOKID", book);
     const newReview = new Review({
       content,
       book,
@@ -59,7 +60,7 @@ router.post("/", async (req, res) => {
     console.log("Review après populate :", populatedReview);
 
     // 🔥 Envoie l'event avec Pusher avec l'user complet
-    pusher.trigger("book-reviews", "new-review", populatedReview);
+    pusher.trigger(`book-reviews-${book}`, "new-review", populatedReview);
 
     res.status(201).json({ result: true, review: populatedReview });
   } catch (error) {
