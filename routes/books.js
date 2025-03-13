@@ -1,8 +1,24 @@
 const router = require("express").Router();
 const Book = require("../models/books");
 // const authMiddleware = require("../middlewares/auth");
-
+// const Pusher = require("pusher");
 // router.use(authMiddleware);
+// let books = [];
+// const pusher = new Pusher({
+//   appId: process.env.PUSHER_APPID,
+//   key: process.env.PUSHER_KEY,
+//   secret: process.env.PUSHER_SECRET,
+//   cluster: process.env.PUSHER_CLUSTER,
+//   useTLS: true,
+// });
+
+// // Fonction pour envoyer une mise à jour quand un livre est ajouté/modifié
+// const notifyGenreUpdate = (updatedBooks) => {
+//   pusher.trigger("book-channel", "update-books", {
+//     books: updatedBooks
+//   });
+// };
+
 
 router.get("/title/:title", async (req, res) => {
   try {
