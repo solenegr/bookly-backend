@@ -83,5 +83,36 @@ router.get("/user/:userId", async (req, res) => {
 });
 
 
+// Route PATCH pour mettre à jour le statut d'un livre
+router.patch('/:libraryId/readings/:bookId/status', async (req, res) => {
+  const { libraryId, bookId } = req.params;
+  const { newStatus } = req.body; // Statut à mettre à jour
 
+  try {
+    // Trouver la bibliothèque en utilisant l'ID de la bibliothèque
+    const library = await Library.findById(libraryId);
+
+    if (!library) {
+      return res.status(404).json({ message: 'Bibliothèque non trouvée' });
+    }
+
+    // Trouver le livre dans la bibliothèque et mettre à jour son statut
+    const reading = library.readings.find((r) => r.book.toString() === bookId);
+
+    if (!reading) {
+      return res.status(404).json({ message: 'Livre non trouvé dans la bibliothèque' });
+    }
+
+    // Mettre à jour le statut du livre
+    reading.status = newStatus || reading.status;
+
+    // Sauvegarder les modifications
+    await library.save();
+
+    return res.status(200).json({ message: 'Statut du livre mis à jour', reading });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Erreur serveur', error });
+  }
+});
 module.exports = router;
