@@ -12,6 +12,7 @@ const messagesRouter = require("./routes/messages");
 const conversationsRouter = require("./routes/conversations");
 const reviewRouter = require("./routes/reviews");
 const libraryRouter = require("./routes/libraries");
+const pusherRouter = require("./routes/pusher");
 const app = express();
 const cors = require("cors");
 app.use(cors());
@@ -34,5 +35,5 @@ app.use("/messages", messagesRouter);
 app.use("/conversations", conversationsRouter);
 app.use("/reviews", reviewRouter);
 app.use("/libraries", libraryRouter);
-
+app.use("/pusher", pusherRouter);
 module.exports = app;

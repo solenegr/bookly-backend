@@ -15,46 +15,31 @@ const pusher = new Pusher({
 
 // router.use(authMiddleware);
 
-// Ajouter un utilisateur à une conversation
-router.put("/:conversationId/add-user/:userId", async (req, res) => {
-  const { conversationId, userId } = req.params;
-
-  // const conversationObjectId = new mongoose.Types.ObjectId(conversationId);
-  // Vérifier si l'ID est valide
-
-  if (
-    !mongoose.Types.ObjectId.isValid(conversationId) ||
-    !mongoose.Types.ObjectId.isValid(userId)
-  ) {
-    return res.status(400).json({ error: "IDs invalides" });
-  }
+router.get("/user/:userId", async (req, res) => {
+  const { userId } = req.params;
 
   try {
-    // Vérifier si la conversation existe
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversation non trouvée" });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "L'ID utilisateur est invalide" });
     }
 
-    // Vérifier si l'utilisateur est déjà dans la conversation
-    if (conversation.users.includes(userId)) {
-      return res
-        .status(400)
-        .json({ error: "L'utilisateur est déjà dans la conversation" });
+    // 🔥 Récupère toutes les conversations où l'utilisateur est présent
+    const conversations = await Conversation.find({ users: userId })
+      .populate("users", "username firstname") // 🔹 Récupère les infos des users
+      .populate({
+        path: "challenge",
+        select: "title description duration", // 🔥 Sélectionne les champs à afficher
+      })
+      .sort({ updatedAt: -1 }); // Trie par dernière activité
+
+    if (!conversations.length) {
+      return res.status(404).json({ error: "Aucune conversation trouvée" });
     }
 
-    // Ajouter l'utilisateur et sauvegarder
-    conversation.users.push(userId);
-    pusher.trigger("chat", "join", {
-      username: req.params.username,
-    });
-    await conversation.save();
-
-    res
-      .status(200)
-      .json({ result: true, message: "Utilisateur ajouté", conversation });
+    res.status(200).json({ result: true, conversations });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Erreur récupération conversations :", error);
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
@@ -95,14 +80,7 @@ router.delete("/:conversationId/remove-user/:userId", async (req, res) => {
 // Créer une nouvelle conversation
 
 router.post("/", async (req, res) => {
-  const { users, title, description, books, duration } = req.body;
-
-  const newChallenge = new Challenge({
-    title: title || "Challenge par défaut",
-    description: description || "Description par défaut",
-    books: books || [],
-    duration: duration || "Durée non précisée",
-  });
+  const { users, title, books, duration } = req.body;
 
   if (!Array.isArray(users) || users.length === 0) {
     return res.status(400).json({
@@ -119,10 +97,10 @@ router.post("/", async (req, res) => {
 
   try {
     const newChallenge = new Challenge({
-      title: "challenge3",
+      title,
       description: "4 livres par mois",
-      books: ["67cabe7ef1c7bf8bcacc5c51"],
-      duration: "1 mois",
+      books,
+      duration,
     });
     newChallenge.save().then(async (data) => {
       const newConversation = new Conversation({
@@ -132,6 +110,49 @@ router.post("/", async (req, res) => {
       await newConversation.save();
       res.status(201).json({ result: true, conversation: newConversation });
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Ajouter un utilisateur à une conversation
+router.put("/:conversationId/add-user/:userId", async (req, res) => {
+  const { conversationId, userId } = req.params;
+
+  // const conversationObjectId = new mongoose.Types.ObjectId(conversationId);
+  // Vérifier si l'ID est valide
+
+  if (
+    !mongoose.Types.ObjectId.isValid(conversationId) ||
+    !mongoose.Types.ObjectId.isValid(userId)
+  ) {
+    return res.status(400).json({ error: "IDs invalides" });
+  }
+
+  try {
+    // Vérifier si la conversation existe
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation non trouvée" });
+    }
+
+    // Vérifier si l'utilisateur est déjà dans la conversation
+    if (conversation.users.includes(userId)) {
+      return res
+        .status(400)
+        .json({ error: "L'utilisateur est déjà dans la conversation" });
+    }
+
+    // Ajouter l'utilisateur et sauvegarder
+    conversation.users.push(userId);
+    pusher.trigger("chat", "join", {
+      username: req.params.username,
+    });
+    await conversation.save();
+
+    res
+      .status(200)
+      .json({ result: true, message: "Utilisateur ajouté", conversation });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
