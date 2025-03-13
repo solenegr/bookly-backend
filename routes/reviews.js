@@ -31,6 +31,19 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Route pour récupérer tous les avis d'un utilisateur donné
+router.get("/user/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const reviews = await Review.find({ user: userId }).populate("book", "title cover"); 
+
+    res.json(reviews);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des avis :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     let { content, book, user, note } = req.body;
