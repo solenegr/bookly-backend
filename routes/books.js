@@ -1,8 +1,24 @@
 const router = require("express").Router();
 const Book = require("../models/books");
 // const authMiddleware = require("../middlewares/auth");
+const Pusher = require("pusher");
 
-// router.use(authMiddleware);
+let books = [];
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APPID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true,
+});
+
+// Fonction pour envoyer une mise à jour quand un livre est ajouté/modifié
+const notifyGenreUpdate = (updatedBooks) => {
+  pusher.trigger("book-channel", "update-books", {
+    books: updatedBooks
+  });
+};
+
 
 router.get("/title/:title", async (req, res) => {
   try {
@@ -74,38 +90,52 @@ router.get("/title/:title", async (req, res) => {
 
 router.get("/isbn/:isbn", async (req, res) => {
   try {
-    const { isbn } = req.params;
-
+    let { isbn } = req.params;
+    console.log(isbn);
     if (!isbn) {
       return res
         .status(400)
         .json({ result: false, error: "L'ISBN est requis dans l'URL." });
     }
 
+    // 🔥 Normalisation de l'ISBN (suppression espaces/tirets)
+    isbn = isbn.replace(/\s+/g, "").replace(/-/g, "");
+
+    console.log("🔍 Recherche ISBN dans MongoDB :", isbn);
     let book = await Book.findOne({ isbn });
+    console.log("📚 Résultat trouvé dans MongoDB :", book);
+    console.log("BOOK FIND", book);
     if (book) {
-      return res.status(200).json({ result: true, book });
+      return res.status(200).json({ result: true, book }); // ✅ Retourne directement le livre existant
     }
 
     // 3️⃣ Requête à l’API ISBNdb
-    const response = await fetch(
-      `https://api2.isbndb.com/book/${isbn}?language=fr`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: process.env.ISBNDB_API_KEY,
-        },
-      }
-    );
+    let data;
+    try {
+      const response = await fetch(
+        `https://api2.isbndb.com/book/${isbn}?language=fr`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: process.env.ISBNDB_API_KEY,
+          },
+        }
+      );
 
-    if (!response.ok) {
-      return res.status(response.status).json({
+      if (!response.ok) {
+        return res.status(response.status).json({
+          result: false,
+          error: `Erreur API: ${response.status} - ${response.statusText}`,
+        });
+      }
+
+      data = await response.json();
+    } catch (error) {
+      return res.status(500).json({
         result: false,
-        error: `Erreur API: ${response.status} - ${response.statusText}`,
+        error: "Erreur lors de la communication avec l'API externe.",
       });
     }
-
-    const data = await response.json();
 
     if (!data.book) {
       return res.status(404).json({
@@ -114,6 +144,7 @@ router.get("/isbn/:isbn", async (req, res) => {
       });
     }
 
+    // 🔥 Construction du livre
     book = {
       title: data.book.title || "Titre non disponible",
       author: data.book.authors ? data.book.authors[0] : "Auteur inconnu",
@@ -124,17 +155,20 @@ router.get("/isbn/:isbn", async (req, res) => {
       cover: data.book.image || "Image non disponible",
       publicationYear: data.book.date_published
         ? new Date(data.book.date_published)
-        : "année inconnue",
+        : null,
       genres: data.book.subjects || [],
       rating: 0,
       reviewCount: 0,
-      isbn: data.book.isbn13 || isbn,
+      isbn: data.book.isbn13 || isbn, // Vérification d'un `isbn13`
     };
 
+    // ✅ Insertion dans la base de données
     const newBook = new Book(book);
     await newBook.save();
 
-    return res.status(200).json({ result: true, book: newBook });
+    books.push(newBook);
+    notifyGenreUpdate(books);
+    return res.status(201).json({ result: true, book: newBook });
   } catch (error) {
     console.error("Erreur serveur :", error);
     res.status(500).json({
@@ -143,6 +177,7 @@ router.get("/isbn/:isbn", async (req, res) => {
     });
   }
 });
+
 router.get("/author/:author", async (req, res) => {
   try {
     console.log("Requête auteur reçue :", req.params);

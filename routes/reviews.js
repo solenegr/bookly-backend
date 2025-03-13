@@ -42,9 +42,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Tous les champs sont requis." });
     }
 
-    book = new mongoose.Types.ObjectId(book);
+    // book = new mongoose.Types.ObjectId(book);
     user = new mongoose.Types.ObjectId(user);
-
+    console.log("BOOOKID", book);
     const newReview = new Review({
       content,
       book,
