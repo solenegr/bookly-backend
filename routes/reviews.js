@@ -32,7 +32,9 @@ router.get("/", async (req, res) => {
   }
 });
 
+
 //route pour poster comm d'un livre spé
+
 router.post("/", async (req, res) => {
   try {
     let { content, book, user, note } = req.body;
