@@ -3,6 +3,7 @@ require("../models/books");
 const Library = require("../models/libraries");
 const Pusher = require("pusher");
 const router = express.Router();
+
 const authMiddleware = require("../middlewares/auth");
 
 const pusher = new Pusher({
@@ -15,6 +16,7 @@ const pusher = new Pusher({
 
 router.use(authMiddleware);
 
+//
 // Ajouter un livre à la bibliothèque
 router.post("/add-to-library", async (req, res) => {
   const { bookId, genres, status, userId } = req.body;
