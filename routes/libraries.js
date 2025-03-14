@@ -1,8 +1,19 @@
 const express = require("express");
 require("../models/books");
-
 const Library = require("../models/libraries");
+const Pusher = require("pusher");
 const router = express.Router();
+const authMiddleware = require("../middlewares/auth");
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APPID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true,
+});
+
+router.use(authMiddleware);
 
 // Ajouter un livre à la bibliothèque
 router.post("/add-to-library", async (req, res) => {
@@ -54,14 +65,14 @@ router.post("/add-to-library", async (req, res) => {
     await library.save();
 
     res.status(200).json({
-      success: true,
+      result: true,
       message: "Livre ajouté avec succès !",
       library,
     });
   } catch (error) {
-    console.error("Erreur lors de l'ajout du livre à la bibliothèque:", error);
+    console.log("Erreur lors de l'ajout du livre à la bibliothèque:", error);
     res.status(500).json({
-      success: false,
+      result: false,
       message: "Erreur interne du serveur",
     });
   }
@@ -83,9 +94,9 @@ router.get("/user/:userId", async (req, res) => {
         .status(404)
         .json({ success: false, message: "Bibliothèque non trouvée" });
     }
-
     // Extraire uniquement les livres de cette bibliothèque
     let books = library.readings.map((reading) => ({
+      _id: reading.book._id,
       title: reading.book.title,
       author: reading.book.author,
       volume: reading.book.volume || 1,
@@ -110,44 +121,67 @@ router.get("/user/:userId", async (req, res) => {
       );
     }
 
-    res.status(200).json({ success: true, books });
+    res.status(200).json({ result: true, books });
   } catch (error) {
     console.error("Erreur lors de la récupération de la bibliothèque :", error);
-    res.status(500).json({ success: false, message: "Erreur serveur" });
+    res.status(500).json({ result: false, message: "Erreur serveur" });
   }
 });
 
-
 // Route PATCH pour mettre à jour le statut d'un livre
-router.patch('/:libraryId/readings/:bookId/status', async (req, res) => {
-  const { libraryId, bookId } = req.params;
+router.patch("/readings/:bookId/status", async (req, res) => {
+  const { bookId } = req.params;
   const { newStatus } = req.body; // Statut à mettre à jour
 
   try {
-    // Trouver la bibliothèque en utilisant l'ID de la bibliothèque
-    const library = await Library.findById(libraryId);
+    if (!req.user || !req.user._id) {
+      return res
+        .status(401)
+        .json({ result: false, message: "Utilisateur non authentifié" });
+    }
 
+    const userId = req.user._id; // On récupère l'ID utilisateur depuis req.user
+
+    // Vérifier si la bibliothèque existe pour cet utilisateur
+    let library = await Library.findOne({ user: userId }).populate("user");
+
+    // Si la bibliothèque n'existe pas, on la crée
     if (!library) {
-      return res.status(404).json({ message: 'Bibliothèque non trouvée' });
+      library = new Library({
+        user: userId,
+        readings: [],
+      });
+      await library.save();
     }
 
     // Trouver le livre dans la bibliothèque et mettre à jour son statut
-    const reading = library.readings.find((r) => r.book.toString() === bookId);
+    let reading = library.readings.find((r) => r.book.toString() === bookId);
 
+    // Si le livre n'est pas encore ajouté, on l'ajoute avec un statut par défaut
     if (!reading) {
-      return res.status(404).json({ message: 'Livre non trouvé dans la bibliothèque' });
+      reading = { book: bookId, status: newStatus || "none" };
+      library.readings.push(reading);
+    } else {
+      // Sinon, on met à jour le statut
+      reading.status = newStatus || reading.status;
     }
 
-    // Mettre à jour le statut du livre
-    reading.status = newStatus || reading.status;
-
-    // Sauvegarder les modifications
+    // Sauvegarder la bibliothèque mise à jour
     await library.save();
 
-    return res.status(200).json({ message: 'Statut du livre mis à jour', reading });
+    // // Notifier avec Pusher
+    // pusher.trigger("book-channel", "update-books", {
+    //   books: [library],
+    // });
+
+    return res
+      .status(200)
+      .json({ result: true, message: "Statut du livre mis à jour", reading });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: 'Erreur serveur', error });
+    return res
+      .status(500)
+      .json({ result: false, message: "Erreur serveur", error });
   }
 });
 module.exports = router;
