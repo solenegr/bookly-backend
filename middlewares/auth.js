@@ -3,19 +3,22 @@ const User = require("../models/users");
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log("authHeader", authHeader)
-    // 1️⃣ Vérifie si le header Authorization est présent
+    console.log("Headers reçus :", req.headers);
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         result: false,
         error: "Accès refusé. Token manquant ou invalide.",
       });
     }
-    const token = authHeader.split(" ")[1];
 
-    // 2️⃣ Vérifier si un utilisateur avec ce token existe
+    const token = authHeader.split(" ")[1];
+    console.log("Token extrait :", token);
+
+    // Cherche l'utilisateur par token dans MongoDB
     const user = await User.findOne({ token });
-console.log("token auth", user)
+    console.log("Utilisateur trouvé :", user);
+
     if (!user) {
       return res.status(403).json({
         result: false,
@@ -23,8 +26,7 @@ console.log("token auth", user)
       });
     }
 
-    // 3️⃣ Ajouter l'utilisateur dans req.user pour l'utiliser dans les routes
-    req.user = user;
+    req.user = user; // Ajoute l'utilisateur au req
     next();
   } catch (error) {
     console.error("Erreur d'authentification :", error);

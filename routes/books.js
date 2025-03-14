@@ -11,15 +11,6 @@ const pusher = new Pusher({
   cluster: process.env.PUSHER_CLUSTER,
   useTLS: true,
 });
-
-// Fonction pour envoyer une mise à jour quand un livre est ajouté/modifié
-const notifyGenreUpdate = (updatedBooks) => {
-  pusher.trigger("book-channel", "update-books", {
-    books: updatedBooks
-  });
-};
-
-
 router.get("/title/:title", async (req, res) => {
   try {
     const { title } = req.params;
@@ -167,7 +158,6 @@ router.get("/isbn/:isbn", async (req, res) => {
     await newBook.save();
 
     books.push(newBook);
-    notifyGenreUpdate(books);
     return res.status(201).json({ result: true, book: newBook });
   } catch (error) {
     console.error("Erreur serveur :", error);
