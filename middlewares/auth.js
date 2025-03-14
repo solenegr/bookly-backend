@@ -3,7 +3,7 @@ const User = require("../models/users");
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-
+    console.log("authHeader", authHeader)
     // 1️⃣ Vérifie si le header Authorization est présent
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
@@ -15,7 +15,7 @@ const authMiddleware = async (req, res, next) => {
 
     // 2️⃣ Vérifier si un utilisateur avec ce token existe
     const user = await User.findOne({ token });
-
+console.log("token auth", user)
     if (!user) {
       return res.status(403).json({
         result: false,
