@@ -78,7 +78,7 @@ router.post("/add-to-library", async (req, res) => {
   }
 });
 
-// Route pour récupérer toutes les bibliothèques
+// Route pour récupérer la bibliothèque d'un utilisateur
 router.get("/user/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
