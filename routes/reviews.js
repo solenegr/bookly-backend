@@ -32,7 +32,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-
 //route pour poster comm d'un livre spé
 
 router.post("/", async (req, res) => {
@@ -126,14 +125,14 @@ router.patch("/:reviewId/like", async (req, res) => {
 router.get("/:userId", (req, res) => {
   const userId = req.params.userId;
   Review.find({ user: userId })
-  .populate('book', 'cover title author isbn genres')
-  .then((data) => {
-    if (data === null) {
-      res.status(404).json({ result: false });
-    } else {
-      res.status(200).json({ result: true, reviews: data });
-    }
-  });
+    .populate("book", "cover title author isbn genres")
+    .then((data) => {
+      if (data === null) {
+        res.status(404).json({ result: false });
+      } else {
+        res.status(200).json({ result: true, reviews: data });
+      }
+    });
 });
 
 module.exports = router;
