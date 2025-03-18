@@ -15,6 +15,7 @@ const pusher = new Pusher({
 
 // router.use(authMiddleware);
 
+//route pour récup les comm d'un livre spé
 router.get("/", async (req, res) => {
   try {
     const { book } = req.query;
@@ -30,6 +31,8 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+//route pour poster comm d'un livre spé
 
 router.post("/", async (req, res) => {
   try {
@@ -69,6 +72,7 @@ router.post("/", async (req, res) => {
   }
 });
 
+//route pour ajouter un like sur un comm
 router.patch("/:reviewId/like", async (req, res) => {
   try {
     const { userId } = req.body;
